@@ -1,12 +1,15 @@
 import { View, Text, StyleSheet } from "react-native";
 import React from "react";
-import Checklist from "@/components/Checklist";
 
-const index = () => {
-  return <Checklist />;
+const rooms = () => {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Out</Text>
+    </View>
+  );
 };
 
-export default index;
+export default rooms;
 
 const styles = StyleSheet.create({
   container: {
