@@ -178,13 +178,15 @@ const ready = () => {
   const renderItem = ({ item }: { item: Room }) => {
     return (
       <View style={styles.container}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={() => handleCheck(item.id)}
           style={styles.touchable}
-        >
+        > */}
+        <View style={styles.roomContainer}>
           <Text style={styles.text}>{checkedItems[item.id] ? "❌" : "✔️"}</Text>
           <Text style={styles.text}>{item.room}</Text>
-        </TouchableOpacity>
+        </View>
+        {/* </TouchableOpacity> */}
       </View>
     );
   };
@@ -229,7 +231,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: "white",
-    fontSize: 16,
+    fontSize: 30,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -271,5 +273,11 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  roomContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 15,
   },
 });

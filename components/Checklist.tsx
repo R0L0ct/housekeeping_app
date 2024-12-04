@@ -150,11 +150,13 @@ const Checklist = () => {
   };
 
   const handleSearch = (text: string) => {
-    setSearchText(text);
-    const filtered = roomData.filter((item) =>
-      item.room.toLowerCase().trim().includes(text.toLowerCase().trim())
-    );
-    setFilteredData(filtered);
+    if (/^\d*$/.test(text)) {
+      setSearchText(text);
+      const filtered = roomData.filter((item) =>
+        item.room.trim().includes(text.trim())
+      );
+      setFilteredData(filtered);
+    }
   };
 
   const renderItem = ({ item }: { item: Room }) => {
@@ -164,8 +166,12 @@ const Checklist = () => {
           onPress={() => handleCheck(item.id)}
           style={styles.touchable}
         >
-          <Text style={styles.text}>{checkedItems[item.id] ? "✔️" : "❌"}</Text>
-          <Text style={styles.text}>{item.room}</Text>
+          <View style={styles.roomContainer}>
+            <Text style={styles.text}>
+              {checkedItems[item.id] ? "✔️" : "❌"}
+            </Text>
+            <Text style={styles.text}>{item.room}</Text>
+          </View>
         </TouchableOpacity>
       </View>
     );
@@ -187,6 +193,7 @@ const Checklist = () => {
           placeholder="Buscar habitacion..."
           value={searchText}
           onChangeText={handleSearch}
+          keyboardType="numeric"
         />
         <View
           style={{
@@ -231,7 +238,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: "white",
-    fontSize: 16,
+    fontSize: 30,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -273,5 +280,11 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  roomContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 15,
   },
 });

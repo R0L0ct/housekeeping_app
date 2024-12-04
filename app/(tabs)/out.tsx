@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import { FontAwesome } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import BackgroundTimer from "react-native-background-timer";
 
 interface Room {
   id: number;
@@ -35,23 +36,51 @@ const rooms = () => {
   );
   const [searchText, setSearchText] = useState("");
   const [filteredData, setFilteredData] = useState<Room[]>([]);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [totalTime, setTotalTime] = useState(0);
   const [allChecked, setAllChecked] = useState(false);
   const [isInteractive, setIsInteractive] = useState(false);
 
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [endTime, setEndTime] = useState<number | null>(null);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [totalTime, setTotalTime] = useState(0);
+
+  const startTimer = () => {
+    const currentTime = Date.now();
+    setStartTime(currentTime);
+    setEndTime(null);
+    setTotalTime(0);
+  };
+
   const formatDate = (date: Date) => {
-    const day = String(date.getDate() - 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
 
     return `${day}-${month}-${year}`;
   };
 
-  const convertMinutesToTimeFormat = (totalTime: number) => {
-    const hours = Math.floor(totalTime / 60);
-    const minutes = totalTime % 60;
-    return `${hours}:${String(minutes).padStart(2, "0")}`;
+  // const convertMinutesToTimeFormat = (totalTime: number) => {
+  //   const hours = Math.floor(totalTime);
+  //   // const minutes = totalTime % 60;
+  //   const minutes = Math.round((totalTime - hours) * 60);
+  //   return `${hours}:${String(minutes).padStart(2, "0")}`;
+  // };
+
+  const convertSecondsToTimeFormat = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600); // Horas
+    const minutes = Math.floor((totalSeconds % 3600) / 60); // Minutos
+    const seconds = Math.floor(totalSeconds % 60); // Segundos restantes
+
+    console.log(
+      `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+        2,
+        "0"
+      )}`
+    );
+
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(
+      seconds
+    ).padStart(2, "0")}`;
   };
 
   useFocusEffect(
@@ -94,19 +123,6 @@ const rooms = () => {
   );
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
-    if (timerRunning) {
-      interval = setInterval(() => {
-        setTotalTime((prev) => prev + 1);
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timerRunning]);
-
-  useEffect(() => {
     setAllChecked(
       roomData.length > 0 && roomData.every((room) => checkedItems[room.id])
     );
@@ -115,32 +131,42 @@ const rooms = () => {
   const handleTimer = async () => {
     try {
       setTimerRunning(false);
-      const currentDate = new Date();
-      const formatedDate = formatDate(currentDate);
 
-      const averageTime = roomData.length > 0 ? totalTime / roomData.length : 0;
+      if (startTime) {
+        const currentTime = Date.now();
+        const elapsedTime = (currentTime - startTime) / 1000;
 
-      const formatedAverage = convertMinutesToTimeFormat(
-        Math.floor(averageTime)
-      );
+        const currentDate = new Date();
+        const formatedDate = formatDate(currentDate);
 
-      const formatedTime = convertMinutesToTimeFormat(totalTime);
+        const averageTime =
+          roomData.length > 0 ? elapsedTime / roomData.length : 0;
 
-      const query = `INSERT INTO work_stats (work_date, average, total_hours) VALUES ('${formatedDate}', '${formatedAverage}', '${formatedTime}')`;
+        const formatedAverage = convertSecondsToTimeFormat(
+          Math.floor(averageTime)
+        );
+        console.log(formatedAverage);
 
-      alert(`Tiempo total: ${formatedTime}hs\nPromedio: ${formatedAverage}hs`);
+        const formatedTime = convertSecondsToTimeFormat(elapsedTime);
 
-      if (totalTime > 0) {
-        await db.withExclusiveTransactionAsync(async (txn) => {
-          await txn.execAsync(query);
-        });
+        const query = `INSERT INTO work_stats (work_date, average, total_hours) VALUES ('${formatedDate}', '${formatedAverage}', '${formatedTime}')`;
+
+        alert(
+          `Tiempo total: ${formatedTime}hs\nPromedio: ${formatedAverage}hs`
+        );
+
+        if (elapsedTime > 0) {
+          await db.withExclusiveTransactionAsync(async (txn) => {
+            await txn.execAsync(query);
+          });
+        }
+
+        const result = await db.getAllAsync("SELECT * FROM work_stats");
+        console.log(result);
+
+        setTotalTime(0);
+        setCheckedItems({});
       }
-
-      // const result = await db.getAllAsync("SELECT * FROM work_stats");
-      // console.log(result);
-
-      setTotalTime(0);
-      setCheckedItems({});
     } catch (error) {
       console.log(error);
     }
@@ -215,6 +241,7 @@ const rooms = () => {
   };
 
   const handleStart = () => {
+    startTimer();
     setTimerRunning(true);
     setIsInteractive(true);
   };
@@ -265,8 +292,12 @@ const rooms = () => {
           style={styles.touchable}
           disabled={!isInteractive}
         >
-          <Text style={styles.text}>{checkedItems[item.id] ? "✔️" : "❌"}</Text>
-          <Text style={styles.text}>{item.room}</Text>
+          <View style={styles.roomContainer}>
+            <Text style={styles.text}>
+              {checkedItems[item.id] ? "✔️" : "❌"}
+            </Text>
+            <Text style={styles.text}>{item.room}</Text>
+          </View>
         </TouchableOpacity>
       </View>
     );
@@ -332,7 +363,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: "white",
-    fontSize: 16,
+    fontSize: 30,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -381,5 +412,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#4CAF50",
     borderRadius: 8,
     alignItems: "center",
+  },
+  roomContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 15,
   },
 });
