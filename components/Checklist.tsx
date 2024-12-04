@@ -5,83 +5,154 @@ import {
   FlatList,
   StyleSheet,
   Pressable,
-  Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import React, { useEffect, useState } from "react";
-import { TextInput } from "react-native-gesture-handler";
+import React, { useCallback, useEffect, useState } from "react";
+import { TextInput } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  SQLiteProvider,
-  useSQLiteContext,
-  type SQLiteDatabase,
-} from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite";
+import { useFocusEffect } from "@react-navigation/native";
 
 interface Room {
-  id: string;
-  name: string;
-}
-
-interface Roomdos {
-  id?: number;
-  room?: string;
-  is_out?: boolean;
-  is_ready?: boolean;
+  id: number;
+  room: string;
+  is_out: number;
+  is_ready: number;
 }
 
 const Checklist = () => {
   const db = useSQLiteContext();
-  const [roomData, setRoomData] = useState<Roomdos[]>([]);
-
-  useEffect(() => {
-    async function fetchData() {
-      const result = await db.getAllAsync<Roomdos>(
-        "SELECT * FROM housekeeping"
-      );
-      if (result) {
-        setRoomData(result);
-        console.log(result);
-      } else {
-        setRoomData([]);
-      }
-    }
-    fetchData();
-  }, []);
-
-  const data: Room[] = [
-    { id: "1", name: "101" },
-    { id: "2", name: "102" },
-    { id: "3", name: "103" },
-    { id: "4", name: "104" },
-    { id: "5", name: "105" },
-    { id: "6", name: "106" },
-    { id: "7", name: "107" },
-    { id: "8", name: "108" },
-    { id: "9", name: "109" },
-    { id: "10", name: "113" },
-    { id: "11", name: "123" },
-    { id: "12", name: "133" },
-    { id: "13", name: "143" },
-  ];
-
+  const [roomData, setRoomData] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>(
     {}
   );
-
   const [searchText, setSearchText] = useState("");
+  const [filteredData, setFilteredData] = useState<Room[]>([]);
+  const [refresh, setRefresh] = useState(false);
 
-  const [filteredData, setFilteredData] = useState(data);
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchData() {
+        try {
+          const result = await db.getAllAsync<Room>(
+            "SELECT * FROM housekeeping"
+          );
+          if (result.length) {
+            setRoomData(result);
+            setFilteredData(result);
+            setLoading(false);
 
-  const handleCheck = (id: string) => {
-    setCheckedItems((prevState: any) => ({
-      ...prevState,
-      [id]: !prevState[id],
-    }));
+            const initialCheckedItems = result.reduce((acc: any, room: any) => {
+              acc[room.id] = room.is_out === 1; // Si is_out es 1, marca el checkbox como verdadero
+              return acc;
+            }, {});
+
+            setCheckedItems(initialCheckedItems);
+          } else {
+            setRoomData([]);
+            setFilteredData([]);
+            setLoading(false);
+          }
+        } catch (err) {
+          console.log("Error fetching data from housekeeping", err);
+          setRoomData([]);
+          setFilteredData([]);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetchData();
+      return () => {
+        setLoading(true);
+      };
+
+      // if (refresh) {
+      //   fetchData();
+      //   setRefresh(false);
+      // }
+    }, [])
+  );
+  // const handleRefresh = () => {
+  //   setRefresh(true);
+  // };
+  // const handleAdd = async () => {
+  //   try {
+  //     const selectedIds = Object.keys(checkedItems)
+  //       .filter((key) => checkedItems[key])
+  //       .map((id) => parseInt(id));
+
+  //     if (selectedIds.length === 0) {
+  //       alert("No hay habitaciones seleccionadas");
+  //       return;
+  //     }
+
+  //     const query = `UPDATE housekeeping SET is_out = True WHERE id IN (${selectedIds.join(
+  //       ", "
+  //     )})`;
+
+  //     await db.withExclusiveTransactionAsync(async (txn) => {
+  //       await txn.execAsync(query);
+  //       console.log("Transaccion completada");
+  //     });
+
+  //     const verifyQuery = `SELECT * FROM housekeeping WHERE id IN (${selectedIds.join(
+  //       ", "
+  //     )})`;
+  //     const result = await db.getAllAsync(verifyQuery);
+  //     console.log("Datos verificados después de la transacción:", result);
+
+  //     const updateData = roomData.map((room) =>
+  //       selectedIds.includes(room.id) ? { ...room, is_out: 1 } : room
+  //     );
+  //     setRoomData(updateData);
+
+  //     alert("Habitaciones actualizadas correctamente.");
+  //   } catch (error) {
+  //     console.log("Error actualizando habitaciones", error);
+  //     alert("Hubo un error actualizando las habitaciones.");
+  //   }
+  // };
+
+  const updateItemsInDb = async (id: number, status: boolean) => {
+    try {
+      if (status) {
+        const query = `UPDATE housekeeping SET is_out = True WHERE id = ${id}`;
+        setLoading(true);
+        await db.withExclusiveTransactionAsync(async (txn) => {
+          await txn.execAsync(query);
+        });
+        setLoading(false);
+      } else {
+        const query = `UPDATE housekeeping SET is_out = False WHERE id = ${id}`;
+        setLoading(true);
+        await db.withExclusiveTransactionAsync(async (txn) => {
+          await txn.execAsync(query);
+        });
+        setLoading(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleCheck = (id: number) => {
+    setCheckedItems((prevState: any) => {
+      const newCheckedItems = { ...prevState, [id]: !prevState[id] };
+      const newStatus = newCheckedItems[id];
+
+      if (prevState[id] !== newStatus) {
+        updateItemsInDb(id, newStatus);
+      }
+
+      return newCheckedItems;
+    });
   };
 
   const handleSearch = (text: string) => {
     setSearchText(text);
-    const filtered = data.filter((item) =>
-      item.name.toLowerCase().trim().includes(text.toLowerCase().trim())
+    const filtered = roomData.filter((item) =>
+      item.room.toLowerCase().trim().includes(text.toLowerCase().trim())
     );
     setFilteredData(filtered);
   };
@@ -94,11 +165,20 @@ const Checklist = () => {
           style={styles.touchable}
         >
           <Text style={styles.text}>{checkedItems[item.id] ? "✔️" : "❌"}</Text>
-          <Text style={styles.text}>{item.name}</Text>
+          <Text style={styles.text}>{item.room}</Text>
         </TouchableOpacity>
       </View>
     );
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#fafafa" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.mainContainer}>
       <View style={styles.searchContainer}>
@@ -108,25 +188,32 @@ const Checklist = () => {
           value={searchText}
           onChangeText={handleSearch}
         />
-        <FontAwesome
-          name="search"
-          size={24}
-          color="gray"
-          style={{ backgroundColor: "#fafafa", paddingRight: 10 }}
-        />
+        <View
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            width: 40,
+            height: 40,
+            backgroundColor: "#fafafa",
+          }}
+        >
+          <FontAwesome name="search" size={24} color="gray" />
+        </View>
       </View>
+      {/* <TouchableOpacity onPress={handleRefresh}>
+        <FontAwesome name="refresh" size={24} color="red" />
+      </TouchableOpacity> */}
       <FlatList
         data={filteredData}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        style={{ paddingTop: 30 }}
+        keyExtractor={(item) => item.id.toString()}
+        scrollEnabled={true}
+        contentContainerStyle={styles.listContentContainer}
+        style={styles.list}
       />
-      <Pressable
-        style={{ borderColor: "white" }}
-        onPress={() => alert("added")}
-      >
-        <Text style={{ color: "white" }}>ADD</Text>
-      </Pressable>
+      {/* <Pressable style={styles.addButton} onPress={handleAdd}>
+        <Text style={styles.addButtonText}>ENVIAR</Text>
+      </Pressable> */}
     </View>
   );
 };
@@ -135,10 +222,7 @@ export default Checklist;
 
 const styles = StyleSheet.create({
   mainContainer: {
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: Dimensions.get("window").height - 80,
+    flex: 1,
   },
   container: {
     flexDirection: "row",
@@ -147,7 +231,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: "white",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -155,14 +239,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  searchInput: {
-    height: 30,
-    paddingHorizontal: 10,
-    backgroundColor: "#fafafa",
-    width: "100%",
-  },
   searchContainer: {
     width: "100%",
     flexDirection: "row",
+    paddingTop: 25,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    paddingHorizontal: 10,
+    backgroundColor: "#fafafa",
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    color: "white",
+  },
+  addButton: {
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#007BFF",
+  },
+  addButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  listContentContainer: {
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  list: {
+    flex: 1,
   },
 });

@@ -9,6 +9,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -54,6 +55,16 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             // <IconSymbol size={28} name="house.circle" color={color} />
             <AntDesign name="checkcircle" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="register"
+        options={{
+          title: "Register",
+          tabBarIcon: ({ color }) => (
+            // <IconSymbol size={28} name="house.circle" color={color} />
+            <MaterialCommunityIcons name="database" size={24} color={color} />
           ),
         }}
       />
