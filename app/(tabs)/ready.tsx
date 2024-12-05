@@ -183,21 +183,41 @@ const ready = () => {
     );
   };
 
-  const renderItem = ({ item }: { item: Room }) => {
-    return (
-      <View style={styles.container}>
-        {/* <TouchableOpacity
-          onPress={() => handleCheck(item.id)}
-          style={styles.touchable}
-        > */}
-        <View style={styles.roomContainer}>
-          <Text style={styles.text}>{checkedItems[item.id] ? "❌" : "✔️"}</Text>
-          <Text style={styles.text}>{item.room}</Text>
+  // const renderItem = ({ item }: { item: Room }) => {
+  //   return (
+  //     <View style={styles.container}>
+  //       {/* <TouchableOpacity
+  //         onPress={() => handleCheck(item.id)}
+  //         style={styles.touchable}
+  //       > */}
+  //       <View style={styles.roomContainer}>
+  //         <Text style={styles.text}>{checkedItems[item.id] ? "❌" : "✔️"}</Text>
+  //         <Text style={styles.text}>{item.room}</Text>
+  //       </View>
+  //       {/* </TouchableOpacity> */}
+  //     </View>
+  //   );
+  // };
+
+  const renderItem = useCallback(
+    ({ item }: { item: Room }) => (
+      <RoomItem item={item} isChecked={checkedItems[item.id]} />
+    ),
+    [checkedItems]
+  );
+
+  const RoomItem = React.memo(
+    ({ item, isChecked }: { item: Room; isChecked: boolean }) => {
+      return (
+        <View style={styles.container}>
+          <View style={styles.roomContainer}>
+            <Text style={styles.text}>{isChecked ? "❌" : "✔️"}</Text>
+            <Text style={styles.text}>{item.room}</Text>
+          </View>
         </View>
-        {/* </TouchableOpacity> */}
-      </View>
-    );
-  };
+      );
+    }
+  );
 
   if (loading) {
     return (
@@ -216,6 +236,9 @@ const ready = () => {
         scrollEnabled={true}
         contentContainerStyle={styles.listContentContainer}
         style={styles.list}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={5}
       />
       {outRoomData?.length === 0 && roomData?.length > 0 && (
         <Pressable style={styles.addButton} onPress={handleFinalize}>
@@ -227,7 +250,6 @@ const ready = () => {
 };
 export default ready;
 
-//123
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,

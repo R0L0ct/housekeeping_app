@@ -20,7 +20,7 @@ const register = () => {
       const fetchData = async () => {
         try {
           const result = await db.getAllAsync<Stats>(
-            "SELECT * FROM work_stats"
+            "SELECT * FROM work_stats ORDER BY id DESC"
           );
           if (result.length) {
             setWorkStats(result);

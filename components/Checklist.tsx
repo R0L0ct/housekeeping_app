@@ -31,6 +31,33 @@ const Checklist = () => {
   const [filteredData, setFilteredData] = useState<Room[]>([]);
   const [refresh, setRefresh] = useState(false);
 
+  // useEffect(() => {
+  // const fetchdata = async () => {
+  //   await db.execAsync("DELETE FROM housekeeping");
+  // };
+  // fetchdata();
+
+  // Genera los números de habitaciones
+  // const fetchdata = async () => {
+  //   const hotelRooms: string[] = [];
+  //   for (let floor = 2; floor <= 12; floor++) {
+  //     for (let room = 1; room <= 10; room++) {
+  //       hotelRooms.push(`${floor}${room.toString().padStart(2, "0")}`);
+  //     }
+  //   }
+
+  //   await db.withExclusiveTransactionAsync(async (txn) => {
+  //     hotelRooms.forEach(async (roomNumber) => {
+  //       await txn.execAsync(
+  //         `INSERT INTO housekeeping (room, is_out, is_ready) VALUES ('${roomNumber}', False, False)`
+  //       );
+  //     });
+  //   });
+  // };
+
+  // fetchdata();
+  // }, []);
+
   useFocusEffect(
     useCallback(() => {
       async function fetchData() {
@@ -118,9 +145,11 @@ const Checklist = () => {
     try {
       if (status) {
         const query = `UPDATE housekeeping SET is_out = True WHERE id = ${id}`;
+        const sentquery = `UPDATE data_sending SET is_sent = False WHERE id = 1`;
         setLoading(true);
         await db.withExclusiveTransactionAsync(async (txn) => {
           await txn.execAsync(query);
+          await txn.execAsync(sentquery);
         });
         setLoading(false);
       } else {
@@ -159,24 +188,60 @@ const Checklist = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: Room }) => {
-    return (
-      <View style={styles.container}>
-        <TouchableOpacity
-          onPress={() => handleCheck(item.id)}
-          style={styles.touchable}
-        >
-          <View style={styles.roomContainer}>
-            <Text style={styles.text}>
-              {checkedItems[item.id] ? "✔️" : "❌"}
-            </Text>
-            <Text style={styles.text}>{item.room}</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+  // const renderItem = ({ item }: { item: Room }) => {
+  //   return (
+  //     <View style={styles.container}>
+  //       <TouchableOpacity
+  //         onPress={() => handleCheck(item.id)}
+  //         style={styles.touchable}
+  //       >
+  //         <View style={styles.roomContainer}>
+  //           <Text style={styles.text}>
+  //             {checkedItems[item.id] ? "✔️" : "❌"}
+  //           </Text>
+  //           <Text style={styles.text}>{item.room}</Text>
+  //         </View>
+  //       </TouchableOpacity>
+  //     </View>
+  //   );
+  // };
 
+  const renderItem = useCallback(
+    ({ item }: { item: Room }) => (
+      <RoomItem
+        item={item}
+        isChecked={checkedItems[item.id]}
+        onCheck={handleCheck}
+      />
+    ),
+    [checkedItems, handleCheck]
+  );
+
+  const RoomItem = React.memo(
+    ({
+      item,
+      isChecked,
+      onCheck,
+    }: {
+      item: Room;
+      isChecked: boolean;
+      onCheck: (id: number) => void;
+    }) => {
+      return (
+        <View style={styles.container}>
+          <TouchableOpacity
+            onPress={() => onCheck(item.id)}
+            style={styles.touchable}
+          >
+            <View style={styles.roomContainer}>
+              <Text style={styles.text}>{isChecked ? "✔️" : "❌"}</Text>
+              <Text style={styles.text}>{item.room}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  );
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -217,6 +282,9 @@ const Checklist = () => {
         scrollEnabled={true}
         contentContainerStyle={styles.listContentContainer}
         style={styles.list}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={5}
       />
       {/* <Pressable style={styles.addButton} onPress={handleAdd}>
         <Text style={styles.addButtonText}>ENVIAR</Text>
