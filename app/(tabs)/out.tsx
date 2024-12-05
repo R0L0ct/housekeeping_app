@@ -12,9 +12,7 @@ import {
 } from "react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { useSQLiteContext } from "expo-sqlite";
-import { FontAwesome } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import BackgroundTimer from "react-native-background-timer";
 
 interface Room {
   id: number;
@@ -23,9 +21,10 @@ interface Room {
   is_ready: number;
 }
 
-type TimerState = {
-  [id: number]: number; // Cada habitación tiene un tiempo asociado
-};
+interface Timer {
+  id: number;
+  start_time: number;
+}
 
 const rooms = () => {
   const db = useSQLiteContext();
@@ -39,16 +38,19 @@ const rooms = () => {
   const [allChecked, setAllChecked] = useState(false);
   const [isInteractive, setIsInteractive] = useState(false);
 
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [endTime, setEndTime] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [totalTime, setTotalTime] = useState(0);
 
-  const startTimer = () => {
-    const currentTime = Date.now();
-    setStartTime(currentTime);
-    setEndTime(null);
-    setTotalTime(0);
+  const startTimer = async () => {
+    try {
+      const currentTime = Date.now();
+      await db.withExclusiveTransactionAsync(async (txn) => {
+        await txn.execAsync(
+          `UPDATE timer SET start_time = ${currentTime} WHERE id = 1`
+        );
+      });
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -59,29 +61,32 @@ const rooms = () => {
     return `${day}-${month}-${year}`;
   };
 
-  // const convertMinutesToTimeFormat = (totalTime: number) => {
-  //   const hours = Math.floor(totalTime);
-  //   // const minutes = totalTime % 60;
-  //   const minutes = Math.round((totalTime - hours) * 60);
-  //   return `${hours}:${String(minutes).padStart(2, "0")}`;
-  // };
-
   const convertSecondsToTimeFormat = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600); // Horas
     const minutes = Math.floor((totalSeconds % 3600) / 60); // Minutos
     const seconds = Math.floor(totalSeconds % 60); // Segundos restantes
 
-    console.log(
-      `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-        2,
-        "0"
-      )}`
-    );
-
     return `${hours}:${String(minutes).padStart(2, "0")}:${String(
       seconds
     ).padStart(2, "0")}`;
   };
+
+  // const initializeDatabase = async () => {
+  //   try {
+  //     // await db.execAsync(`
+  //     //   CREATE TABLE IF NOT EXISTS timer (
+  //     //     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  //     //     start_time REAL DEFAULT 0
+  //     //   )
+  //     // `);
+  //     await db.execAsync(`
+  //       INSERT INTO timer (start_time) VALUES (0)
+  //     `);
+  //     console.log("Tabla 'timer' creada o ya existe.");
+  //   } catch (error) {
+  //     console.error("Error al inicializar la base de datos:", error);
+  //   }
+  // };
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +111,8 @@ const rooms = () => {
             setFilteredData([]);
             setLoading(false);
           }
+
+          // initializeDatabase();
         } catch (err) {
           console.log("Error fetching data from housekeeping", err);
           setRoomData([]);
@@ -132,9 +139,13 @@ const rooms = () => {
     try {
       setTimerRunning(false);
 
-      if (startTime) {
+      const startTime = await db.getAllAsync<Timer>(
+        `SELECT * FROM timer WHERE id = 1`
+      );
+
+      if (startTime && startTime.length > 0) {
         const currentTime = Date.now();
-        const elapsedTime = (currentTime - startTime) / 1000;
+        const elapsedTime = (currentTime - startTime[0].start_time) / 1000;
 
         const currentDate = new Date();
         const formatedDate = formatDate(currentDate);
@@ -145,7 +156,6 @@ const rooms = () => {
         const formatedAverage = convertSecondsToTimeFormat(
           Math.floor(averageTime)
         );
-        console.log(formatedAverage);
 
         const formatedTime = convertSecondsToTimeFormat(elapsedTime);
 
@@ -161,11 +171,10 @@ const rooms = () => {
           });
         }
 
-        const result = await db.getAllAsync("SELECT * FROM work_stats");
-        console.log(result);
+        // const result = await db.getAllAsync("SELECT * FROM work_stats");
+        // console.log(result);
 
-        setTotalTime(0);
-        setCheckedItems({});
+        // setCheckedItems({});
       }
     } catch (error) {
       console.log(error);
@@ -202,38 +211,38 @@ const rooms = () => {
       handleTimer();
       setIsInteractive(false);
 
-      const fetchData = async () => {
-        try {
-          const result = await db.getAllAsync<Room>(
-            "SELECT * FROM housekeeping WHERE is_out = True AND is_ready = False"
-          );
-          if (result.length) {
-            console.log("Datos obtenidos:", result);
-            setRoomData(result);
-            setFilteredData(result);
-            setLoading(false);
+      // const fetchData = async () => {
+      //   try {
+      //     const result = await db.getAllAsync<Room>(
+      //       "SELECT * FROM housekeeping WHERE is_out = True AND is_ready = False"
+      //     );
+      //     if (result.length) {
+      //       console.log("Datos obtenidos:", result);
+      //       setRoomData(result);
+      //       setFilteredData(result);
+      //       setLoading(false);
 
-            const initialCheckedItems = result.reduce((acc: any, room: any) => {
-              acc[room.id] = room.is_ready === 1; // Si is_out es 1, marca el checkbox como verdadero
-              return acc;
-            }, {});
+      //       const initialCheckedItems = result.reduce((acc: any, room: any) => {
+      //         acc[room.id] = room.is_ready === 1; // Si is_out es 1, marca el checkbox como verdadero
+      //         return acc;
+      //       }, {});
 
-            setCheckedItems(initialCheckedItems);
-          } else {
-            setRoomData([]);
-            setFilteredData([]);
-            setLoading(false);
-          }
-        } catch (err) {
-          console.log("Error fetching data from housekeeping", err);
-          setRoomData([]);
-          setFilteredData([]);
-        } finally {
-          setLoading(false);
-        }
-      };
+      //       setCheckedItems(initialCheckedItems);
+      //     } else {
+      //       setRoomData([]);
+      //       setFilteredData([]);
+      //       setLoading(false);
+      //     }
+      //   } catch (err) {
+      //     console.log("Error fetching data from housekeeping", err);
+      //     setRoomData([]);
+      //     setFilteredData([]);
+      //   } finally {
+      //     setLoading(false);
+      //   }
+      // };
 
-      fetchData();
+      // fetchData();
     } catch (error) {
       console.log("Error actualizando habitaciones", error);
       alert("Hubo un error actualizando las habitaciones.");
@@ -279,7 +288,7 @@ const rooms = () => {
       return newCheckedItems;
     });
   };
-  //aisdf
+
   const renderItem = ({ item }: { item: Room }) => {
     return (
       <View style={styles.container}>

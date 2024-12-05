@@ -40,6 +40,7 @@ const ready = () => {
           const out_result = await db.getAllAsync<Room>(
             "SELECT * FROM housekeeping WHERE is_out = True AND is_ready = False"
           );
+          console.log(out_result);
           if (result.length) {
             setRoomData(result);
             setFilteredData(result);
@@ -57,9 +58,9 @@ const ready = () => {
             setLoading(false);
           }
 
-          if (out_result.length) {
-            setOutRoomData(out_result);
-          }
+          // if (out_result.length) {
+          setOutRoomData(out_result);
+          // }
         } catch (err) {
           console.log("Error fetching data from housekeeping", err);
           setRoomData([]);
@@ -91,18 +92,18 @@ const ready = () => {
     }
   };
 
-  const handleCheck = (id: number) => {
-    setCheckedItems((prevState: any) => {
-      const newCheckedItems = { ...prevState, [id]: !prevState[id] };
-      const newStatus = newCheckedItems[id];
+  // const handleCheck = (id: number) => {
+  //   setCheckedItems((prevState: any) => {
+  //     const newCheckedItems = { ...prevState, [id]: !prevState[id] };
+  //     const newStatus = newCheckedItems[id];
 
-      if (prevState[id] !== newStatus) {
-        updateItemsInDb(id, newStatus);
-      }
+  //     if (prevState[id] !== newStatus) {
+  //       updateItemsInDb(id, newStatus);
+  //     }
 
-      return newCheckedItems;
-    });
-  };
+  //     return newCheckedItems;
+  //   });
+  // };
 
   const handleFinalize = () => {
     Alert.alert(
@@ -122,6 +123,13 @@ const ready = () => {
               await db.withExclusiveTransactionAsync(async (txn) => {
                 await txn.execAsync(query);
               });
+
+              const resetTimerQuery =
+                "UPDATE timer SET start_time = 0 WHERE id = 1";
+              await db.withExclusiveTransactionAsync(async (txn) => {
+                await txn.execAsync(resetTimerQuery);
+              });
+
               console.log("Todos los registros se resetearon");
               alert("Dia finalizado");
 
@@ -153,9 +161,9 @@ const ready = () => {
                     setLoading(false);
                   }
 
-                  if (out_result.length) {
-                    setOutRoomData(out_result);
-                  }
+                  // if (out_result.length) {
+                  setOutRoomData(out_result);
+                  // }
                 } catch (err) {
                   console.log("Error fetching data from housekeeping", err);
                   setRoomData([]);
