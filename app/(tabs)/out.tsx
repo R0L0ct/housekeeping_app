@@ -60,25 +60,25 @@ const rooms = () => {
     }
   };
 
-  useEffect(() => {
-    // const fetchdata = async () => {
-    //   try {
-    //     await db.withExclusiveTransactionAsync(async (txn) => {
-    //       await txn.execAsync(`CREATE TABLE IF NOT EXISTS data_sending (
-    //       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    //       is_sent BOOLEAN DEFAULT False
-    //       ) `);
-    //       await txn.execAsync(
-    //         `INSERT INTO data_sending (is_sent) VALUES (False)`
-    //       );
-    //     });
-    //     console.log("Datos creados correctamente");
-    //   } catch (error) {
-    //     console.log(error);
-    //   }
-    // };
-    // fetchdata();
-  }, []);
+  // useEffect(() => {
+  // const fetchdata = async () => {
+  //   try {
+  //     await db.withExclusiveTransactionAsync(async (txn) => {
+  //       await txn.execAsync(`CREATE TABLE IF NOT EXISTS data_sending (
+  //       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  //       is_sent BOOLEAN DEFAULT False
+  //       ) `);
+  //       await txn.execAsync(
+  //         `INSERT INTO data_sending (is_sent) VALUES (False)`
+  //       );
+  //     });
+  //     console.log("Datos creados correctamente");
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // };
+  // fetchdata();
+  // }, []);
 
   const formatDate = (date: Date) => {
     const day = String(date.getDate()).padStart(2, "0");

@@ -22,6 +22,22 @@ const register = () => {
           const result = await db.getAllAsync<Stats>(
             "SELECT * FROM work_stats ORDER BY id DESC"
           );
+
+          // Para eliminar registros que superen la cantidad de 50, se eliminaran los mas antiguos.
+          const countResult = await db.getFirstAsync<{ count: number }>(
+            "SELECT COUNT(*) as count FROM work_stats"
+          );
+          const rowCount = countResult?.count || 0;
+
+          if (rowCount > 50) {
+            const excessRows = rowCount - 50;
+            await db.execAsync(
+              `DELETE FROM work_stats WHERE id IN (
+           SELECT id FROM work_stats ORDER BY id ASC LIMIT ${excessRows} 
+         )`
+            );
+          }
+
           if (result.length) {
             setWorkStats(result);
             setLoading(false);
@@ -39,7 +55,22 @@ const register = () => {
       };
     }, [])
   );
-  const renderItem = ({ item }: { item: Stats }) => {
+  // const renderItem = ({ item }: { item: Stats }) => {
+  //   return (
+  //     <View style={styles.row}>
+  //       <Text style={styles.cell}>{item.work_date}</Text>
+  //       <Text style={styles.cell}>{item.total_hours}</Text>
+  //       <Text style={styles.cell}>{item.average}</Text>
+  //     </View>
+  //   );
+  // };
+
+  const renderItem = useCallback(
+    ({ item }: { item: Stats }) => <RegisterItem item={item} />,
+    []
+  );
+
+  const RegisterItem = React.memo(({ item }: { item: Stats }) => {
     return (
       <View style={styles.row}>
         <Text style={styles.cell}>{item.work_date}</Text>
@@ -47,7 +78,7 @@ const register = () => {
         <Text style={styles.cell}>{item.average}</Text>
       </View>
     );
-  };
+  });
 
   if (loading) {
     return (
